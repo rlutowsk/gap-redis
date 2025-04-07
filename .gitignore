@@ -1,3 +1,10 @@
+Makefile
+autom4te.cache
+config.log
+config.status
+configure~
+redis.g
+
 # Prerequisites
 *.d
 
