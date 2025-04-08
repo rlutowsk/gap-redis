@@ -147,7 +147,7 @@ Obj FuncRedisZADDElm( Obj self, Obj Set, Obj Score, Obj Elm )
 
 Obj FuncRedisZPOPElm( Obj self, Obj Set, Obj Count )
 {
-	redisReply *get, *rem;
+	redisReply *get;
 	Obj list, rstring;
 
 	CheckCTX( ctx );
@@ -322,6 +322,60 @@ Obj FuncZCOUNT( Obj self, Obj Set, Obj ScoreMin, Obj ScoreMax )
   return record;
 }
 
+Obj FuncSetCounter(Obj self, Obj Name, Obj Value)
+{
+	CheckCTX( ctx );
+
+	if ( ! ( IS_STRING( Name ) && IS_INTOBJ( Value ) ) ) {
+    	return retBadArgs;
+  	}
+
+	redisCommand( ctx, "SET %s %d", CSTR_STRING( Name ), INT_INTOBJ( Value ));
+	retIC( False, INT_INTOBJ( Value ), "");
+
+	return (Obj)0;
+}
+
+Obj FuncGetCounter(Obj self, Obj Name)
+{
+    Obj val;
+
+    CheckCTX( ctx );
+
+    if ( ! IS_STRING( Name ) ) {
+    	return retBadArgs;
+  	}
+
+	rep = redisCommand( ctx, "GET %s", CSTR_STRING( Name ));
+	if ( rep->type == REDIS_REPLY_STRING ) {
+		val = INTOBJ_INT(atoi(rep->str));
+	} else {
+		val = Fail;
+	}
+	freeReplyObject(rep);
+	return val;
+}
+
+Obj FuncINCR( Obj self, Obj Name )
+{
+	Obj val;
+
+	CheckCTX( ctx );
+
+	if ( ! IS_STRING( Name ) ) {
+    	return retBadArgs;
+  	}
+
+	rep = redisCommand( ctx, "INCR %s", CSTR_STRING( Name ));
+	if ( rep->type == REDIS_REPLY_INTEGER ) {
+		val = INTOBJ_INT(rep->integer);
+	} else {
+		val = Fail;
+	}
+	freeReplyObject(rep);
+	return val;
+}
+
 /* 
  * GVarFunc - list of functions to export
  */
@@ -337,6 +391,9 @@ static StructGVarFunc GVarFunc[] = {
     { "C_REDIS_ZREM_SCORE"   , 3, " set, min, max "       , FuncZREMScore         , "redis.c:RedisZREMScore"         },
     { "C_REDIS_ZCOUNT"       , 3, " set, min, max "       , FuncZCOUNT            , "redis.c:RedisSCOUNT"            },
     { "C_REDIS_CONNECTED"    , 0, ""                      , FuncRedisConnected    , "redis.c:RedisConnected"         },
+	{ "RedisSetCounter"      , 2, " name, value"          , FuncSetCounter        , "redis.c:SetCounter"             },
+    { "RedisGetCounter"      , 1, " name"                 , FuncGetCounter        , "redis.c:GetCounter"             },
+	{ "RedisIncrement"       , 1, " name"                 , FuncINCR              , "redis.c:Increment"              },
     { 0 }
 };
 
