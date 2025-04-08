@@ -9,35 +9,36 @@ TIME_MEMORY_KEY := "time:memory";
 TIME_REDIS_START_KEY := "time:redis:start";
 TIME_REDIS_END_KEY   := "time:redis:end";
 
+redis_demo_data := [];
+
 # example run: num=10000, dim=50
 RedisDemoDeploy := function(num, dim)
-    local list, l, start, time;
 
     RedisConnect("localhost", 6379);
     Info(RedisDemoInfo, 1, "Connected to redis");
 
-    list := List([1..num], i->rec(name:=i, data:=RandomMat(dim, dim)));
+    redis_demo_data := List([1..num], i->rec(name:=i, data:=RandomMat(dim, dim)));
     Info(RedisDemoInfo, 1, "Data generated");
-    DeployListLeft("input", list);
+    DeployListLeft("input", redis_demo_data);
     Info(RedisDemoInfo, 1, "Data deployed");
-    start:=NanosecondsSinceEpoch(); 
-    for l in list do 
-        Print(l.name,"\r"); 
-        DeterminantIntMat(l.data); 
-    od;
-    RedisSetCounter(TIME_MEMORY_KEY, (NanosecondsSinceEpoch()-start)/1000);
     #Info(RedisDemoInfo, 1, "Calculation time in us: ", RedisGetCounter(TIME_MEMORY_KEY), "\n");
     RedisDelete(TIME_REDIS_START_KEY);
     RedisDelete(TIME_REDIS_END_KEY);
 
-    time := RedisGetCounter(TIME_MEMORY_KEY);
-
     RedisFree();
-
-    return time;
 end;
 
-RedisDemoRun := function()
+RedisDemoRunSingle := function()
+    local start, l;
+    start:=NanosecondsSinceEpoch(); 
+    for l in redis_demo_data do 
+        Print(l.name,"\r"); 
+        DeterminantIntMat(l.data); 
+    od;
+    return (NanosecondsSinceEpoch()-start)/1000;
+end;
+
+RedisDemoRunPar := function()
     local str, mat;
 
     RedisConnect("localhost", 6379);
