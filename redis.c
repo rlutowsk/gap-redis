@@ -18,6 +18,7 @@ redisReply   *rep;
 char         address[R_NAME_MAX+1];
 int          port;
 Obj          record;
+Obj			 rval;
 UInt         RC_ERR;
 UInt         RC_STR;
 UInt         RC_VAL;
@@ -338,8 +339,6 @@ Obj FuncSetCounter(Obj self, Obj Name, Obj Value)
 
 Obj FuncGetCounter(Obj self, Obj Name)
 {
-    Obj val;
-
     CheckCTX( ctx );
 
     if ( ! IS_STRING( Name ) ) {
@@ -348,18 +347,16 @@ Obj FuncGetCounter(Obj self, Obj Name)
 
 	rep = redisCommand( ctx, "GET %s", CSTR_STRING( Name ));
 	if ( rep->type == REDIS_REPLY_STRING ) {
-		val = INTOBJ_INT(atoi(rep->str));
+		rval = INTOBJ_INT(atoi(rep->str));
 	} else {
-		val = Fail;
+		rval = Fail;
 	}
 	freeReplyObject(rep);
-	return val;
+	return rval;
 }
 
 Obj FuncINCR( Obj self, Obj Name )
 {
-	Obj val;
-
 	CheckCTX( ctx );
 
 	if ( ! IS_STRING( Name ) ) {
@@ -368,12 +365,79 @@ Obj FuncINCR( Obj self, Obj Name )
 
 	rep = redisCommand( ctx, "INCR %s", CSTR_STRING( Name ));
 	if ( rep->type == REDIS_REPLY_INTEGER ) {
-		val = INTOBJ_INT(rep->integer);
+		rval = INTOBJ_INT(rep->integer);
 	} else {
-		val = Fail;
+		rval = Fail;
 	}
 	freeReplyObject(rep);
-	return val;
+	return rval;
+}
+
+Obj FuncINCRBY( Obj self, Obj Name, Obj Value )
+{
+	CheckCTX( ctx );
+
+	if ( ! (IS_STRING( Name ) && IS_INTOBJ(Value)) ) {
+    	ErrorQuit("Bad argument types", 0L, 0L);
+  	}
+
+	rep = redisCommand( ctx, "INCRBY %s %d", CSTR_STRING( Name ), INT_INTOBJ(Value));
+	if ( rep->type == REDIS_REPLY_INTEGER ) {
+		rval = INTOBJ_INT(rep->integer);
+	} else {
+		rval = Fail;
+	}
+	freeReplyObject(rep);
+	return rval;
+}
+
+Obj FuncPUSH(Obj self, Obj LR, Obj Name, Obj Data)
+{
+	if ( ! ( IS_INTOBJ(LR) ) && IS_STRING( Name ) && IS_STRING( Data ) ) {
+    	ErrorQuit("Bad argument types", 0L, 0L);
+  	}
+	if (INT_INTOBJ(LR)==0) {
+		/* push from the left */
+		rep = redisCommand(ctx, "LPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
+	} else {
+		rep = redisCommand(ctx, "RPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
+	}
+	if ( rep->type == REDIS_REPLY_INTEGER ) {
+		rval = INTOBJ_INT(rep->integer);
+	} else {
+		rval = Fail;
+	}
+	freeReplyObject(rep);
+	return rval;
+}
+
+Obj FuncPOP(Obj self, Obj LR, Obj Name)
+{
+	if ( ! ( IS_INTOBJ(LR) ) && IS_STRING( Name ) ) {
+    	ErrorQuit("Bad argument types", 0L, 0L);
+  	}
+	if (INT_INTOBJ(LR)==0) {
+		/* push from the left */
+		rep = redisCommand(ctx, "LPOP %s", CSTR_STRING(Name));
+	} else {
+		rep = redisCommand(ctx, "RPOP %s", CSTR_STRING(Name));
+	}
+	if ( rep->type == REDIS_REPLY_STRING ) {
+		rval = MakeString(rep->str);
+	} else {
+		rval = Fail;
+	}
+	freeReplyObject(rep);
+	return rval;
+}
+
+Obj FuncDEL(Obj self, Obj Name)
+{
+	if ( !IS_STRING( Name ) ) {
+    	ErrorQuit("Bad argument types", 0L, 0L);
+  	}
+	rep = redisCommand(ctx, "DEL %s", CSTR_STRING(Name));
+	return (Obj)0;
 }
 
 /* 
@@ -394,6 +458,10 @@ static StructGVarFunc GVarFunc[] = {
 	{ "RedisSetCounter"      , 2, " name, value"          , FuncSetCounter        , "redis.c:SetCounter"             },
     { "RedisGetCounter"      , 1, " name"                 , FuncGetCounter        , "redis.c:GetCounter"             },
 	{ "RedisIncrement"       , 1, " name"                 , FuncINCR              , "redis.c:Increment"              },
+	{ "RedisIncrementBy"     , 2, " name, value"          , FuncINCRBY            , "redis.c:IncrementBy"            },
+	{ "RedisLRPush"          , 3, " lr, name, data"       , FuncPUSH              , "redis.c:LRPush"                 },
+	{ "RedisLRPop"           , 2, " lr, name"             , FuncPOP               , "redis.c:LRPop"                  },
+	{ "RedisDelete"          , 1, " name"                 , FuncDEL               , "redis.c:Delete"                 },
     { 0 }
 };
 

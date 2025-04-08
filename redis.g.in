@@ -130,3 +130,16 @@ RedisZCount := function( set, min, max )
 	return rval.val;
 end;
 
+DeployListLeft := function(name, list)
+	local item, str, cnt;
+	if not RedisConnected() then
+		return;
+	fi;
+	cnt := 0;
+	for item in list do
+		str := String(item);
+		RemoveCharacters(str, " \r\t\n");
+		cnt := RedisLRPush(0, name, str);
+	od;
+	return cnt;
+end;
