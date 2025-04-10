@@ -6,129 +6,129 @@ if not IsBound( GAP_REDIS_SO ) then
 	BindGlobal( "GAP_REDIS_SO" , Concatenation(GAP_REDIS_DIR, "/", "redis.so" ) );
 fi;
 
-if not IsBound( C_REDIS_CONNECT ) then
+if not IsBound(  ) then
 	LoadDynamicModule( GAP_REDIS_SO );
 fi;
 
-GAP_REDIS_DEBUG := false;
+# GAP_REDIS_DEBUG := false;
 
-RedisConnected := function()
-	local rval;
+# RedisConnected := function()
+# 	local rval;
 
-	rval := C_REDIS_CONNECTED();
-	return rval.val;
-end;
+# 	rval := C_REDIS_CONNECTED();
+# 	return rval.val;
+# end;
 
-RedisConnect := function( address, port )
-	local rval;
+# RedisConnect := function( address, port )
+# 	local rval;
 
-	rval := C_REDIS_CONNECT( address, port );
-	if rval.err then
-		if GAP_REDIS_DEBUG then
-			Print("Redis: ", rval.str, "(type: ", rval.val, ")\n");
-		fi;
-		return fail;
-	fi;
-	return true;
-end;
+# 	rval := C_REDIS_CONNECT( address, port );
+# 	if rval.err then
+# 		if GAP_REDIS_DEBUG then
+# 			Print("Redis: ", rval.str, "(type: ", rval.val, ")\n");
+# 		fi;
+# 		return fail;
+# 	fi;
+# 	return true;
+# end;
 
-RedisFree := function()
-	C_REDIS_FREE();
-	return true;
-end;
+# RedisFree := function()
+# 	C_REDIS_FREE();
+# 	return true;
+# end;
 
-RedisPing := function()
-	local rval;
+# RedisPing := function()
+# 	local rval;
 
-	rval := C_REDIS_PING();
-	return rval.str;
-end;
+# 	rval := C_REDIS_PING();
+# 	return rval.str;
+# end;
 
-RedisZAddElement := function( set, score, elm )
-	local rval;
+# RedisZAddElement := function( set, score, elm )
+# 	local rval;
 
-	rval := C_REDIS_ZADD_ELM( set, score, elm );
-	if rval.err then
-		Error( rval.str, "(type: ", rval.val, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZADD_ELM( set, score, elm );
+# 	if rval.err then
+# 		Error( rval.str, "(type: ", rval.val, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZPopElement := function( set, count )
-	local rval;
+# RedisZPopElement := function( set, count )
+# 	local rval;
 
-	rval := C_REDIS_ZPOP_ELM( set, count ); 
-	if rval.err then
-		Error( rval.str, "(type: ", rval.val, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZPOP_ELM( set, count ); 
+# 	if rval.err then
+# 		Error( rval.str, "(type: ", rval.val, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZPopElementNE := function( set, count )
-	local rval;
+# RedisZPopElementNE := function( set, count )
+# 	local rval;
 
-	rval := C_REDIS_ZPOP_ELM( set, count ); 
-	if rval.err then
-		return fail;
-		#Error( rval.str, "(type: ", rval.val, ")" );
-	fi;
-	return rval.str;
-end;
+# 	rval := C_REDIS_ZPOP_ELM( set, count ); 
+# 	if rval.err then
+# 		return fail;
+# 		#Error( rval.str, "(type: ", rval.val, ")" );
+# 	fi;
+# 	return rval.str;
+# end;
 
-RedisZRange := function( set, start, stop )
-	local rval;
+# RedisZRange := function( set, start, stop )
+# 	local rval;
 
-	rval := C_REDIS_ZRANGE( set, start, stop );
-	if rval.err then
-		Error( rval.str, "(type: ", rval.type, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZRANGE( set, start, stop );
+# 	if rval.err then
+# 		Error( rval.str, "(type: ", rval.type, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZRangeByScore := function( set, start, stop )
-	local rval;
+# RedisZRangeByScore := function( set, start, stop )
+# 	local rval;
 
-	rval := C_REDIS_ZRANGEBYSCORE( set, start, stop );
-	if rval.err then
-		Error( rval.str, "(type: ", rval.type, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZRANGEBYSCORE( set, start, stop );
+# 	if rval.err then
+# 		Error( rval.str, "(type: ", rval.type, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZRem := function( set, elm )
-	local rval;
+# RedisZRem := function( set, elm )
+# 	local rval;
 
-	rval := C_REDIS_ZREM( set, elm );
-	if rval.err then
-		Error( rval.str, "(type: ", rval.val, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZREM( set, elm );
+# 	if rval.err then
+# 		Error( rval.str, "(type: ", rval.val, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZRemScoreRange := function( set, min, max )
-	local rval;
+# RedisZRemScoreRange := function( set, min, max )
+# 	local rval;
 
-	rval := C_REDIS_ZREM_SCORE( set, min, max );
+# 	rval := C_REDIS_ZREM_SCORE( set, min, max );
 
-	if rval.err then
-		Error(rval.str, "(type: ", rval.type, ")" );
-	fi;
-	return rval.val;
-end;
+# 	if rval.err then
+# 		Error(rval.str, "(type: ", rval.type, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
-RedisZRemScore := function( set, score )
-	return RedisZRemScoreRange( set, score, score );
-end;
+# RedisZRemScore := function( set, score )
+# 	return RedisZRemScoreRange( set, score, score );
+# end;
 
-RedisZCount := function( set, min, max )
-	local rval;
+# RedisZCount := function( set, min, max )
+# 	local rval;
 
-	rval := C_REDIS_ZCOUNT( set, min, max );
-	if rval.err then
-		Error(rval.str, "(type: ", rval.type, ")" );
-	fi;
-	return rval.val;
-end;
+# 	rval := C_REDIS_ZCOUNT( set, min, max );
+# 	if rval.err then
+# 		Error(rval.str, "(type: ", rval.type, ")" );
+# 	fi;
+# 	return rval.val;
+# end;
 
 DeployListLeft := function(name, list)
 	local item, str, cnt;
