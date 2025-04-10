@@ -121,7 +121,7 @@ RedisDemoRuntimes := function()
 
     t.single:= RedisGetCounter(TIME_MEMORY_KEY);
     t.redis := RedisGetCounter(TIME_REDIS_KEY);
-    if IsInt(time) and time > 0 then  
+    if IsInt(t.redis) and t.redis > 0 then  
         return t;
     fi;
 
