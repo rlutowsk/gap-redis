@@ -23,11 +23,12 @@ AC_SUBST([GAC_PATH])
 # Checking the hiredis library
 AC_CHECK_LIB([hiredis], [redisConnect],
              [AC_MSG_NOTICE([Found the hiredis library.])
-              HAVE_HIREDIS=yes],
+              have_hiredis=yes],
              [AC_MSG_ERROR([The hiredis library was not found.])
-              HAVE_HIREDIS=no])
+              have_hiredis=no])
 
-AC_SUBST([HAVE_HIREDIS])
+LDFLAGS="-lhiredis $LDFLAGS"
+AC_SUBST([LDFLAGS])
 
 # Variable storing the current folder
 CURRENT_DIR="$PWD"

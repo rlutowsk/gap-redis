@@ -618,7 +618,6 @@ PACKAGE_URL=''
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 CURRENT_DIR
-HAVE_HIREDIS
 GAC_PATH
 OBJEXT
 EXEEXT
@@ -3258,13 +3257,14 @@ if test "x$ac_cv_lib_hiredis_redisConnect" = xyes
 then :
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: Found the hiredis library." >&5
 printf "%s\n" "$as_me: Found the hiredis library." >&6;}
-              HAVE_HIREDIS=yes
+              have_hiredis=yes
 else $as_nop
   as_fn_error $? "The hiredis library was not found." "$LINENO" 5
-              HAVE_HIREDIS=no
+              have_hiredis=no
 fi
 
 
+LDFLAGS="-lhiredis $LDFLAGS"
 
 
 # Variable storing the current folder

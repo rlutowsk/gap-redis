@@ -1,25 +1,18 @@
-# Zmienna z programem gac (ustawiana przez configure)
 GAC = @GAC_PATH@
 
-# Opcjonalne flagi kompilatora (można ustawić w configure.ac)
-CFLAGS = @CFLAGS@
+CFLAGS += @CFLAGS@
+LDFLAGS += @LDFLAGS@
 
-# Nazwa biblioteki wyjściowej
 LIBRARY_NAME = redis.so
 
-# Plik źródłowy
 SOURCE_FILE = redis.c
 
-# Cel domyślny
 all: $(LIBRARY_NAME)
 
-# Reguła kompilacji biblioteki współdzielonej
 $(LIBRARY_NAME): $(SOURCE_FILE)
-	$(GAC) -p '$(CFLAGS)' -L '-lhiredis' -d -o $@ $<
+	$(GAC) -p '$(CFLAGS)' -L '$(LDFLAGS)' -d -o $@ $<
 
-# Cel czyszczenia
 clean:
 	rm -f $(wildcard $(LIBRARY_NAME) *.o)
 
-# Standardowe cele (dla automake)
 .PHONY: all clean

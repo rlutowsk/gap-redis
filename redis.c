@@ -9,304 +9,34 @@
 #define INFO() {}
 #endif
 
-#ifndef R_NAME_MAX
-#define R_NAME_MAX 1024
-#endif
+/* ***************************************************** */
+/* ************** Functions' declarations ************** */
 
-redisContext *ctx;
-redisReply   *rep;
+/* ************** Connection functions ***************** */
+Obj FuncRedisConnected( Obj self );
+Obj FuncRedisConnect( Obj self, Obj Hostname, Obj Port );
+Obj FuncRedisFree( Obj self );
+Obj FuncRedisPing( Obj self );
 
-static Obj   status;
-static Obj	 rval;
-static UInt  RNAM_ADDRESS,
-			 RNAM_PORT,
-			 RNAM_REPLY,
-			 RNAM_MESSAGE;
+/* ************** Handle Redis commands ***************** */
+Obj FuncCMD(Obj self, Obj Cmd);
 
-static Obj REDIS_REPLY_ERROR_OBJ;
-static const char *redis_no_ctx_msg = "Redis context object not allocated";
-static Obj REDIS_NO_CTX_MSG;
+/* ********************** Strings *********************** */
+Obj FuncSetCounter(Obj self, Obj Name, Obj Value);
+Obj FuncGetCounter(Obj self, Obj Name);
+Obj FuncDEL(Obj self, Obj Name);
 
-static Int GVAR_REDIS_STATUS;
+Obj FuncINCR( Obj self, Obj Name );
+Obj FuncINCRBY( Obj self, Obj Name, Obj Value );
 
-inline static void 	SetStatusHostname(const Obj Hostname) 
-{
-	AssPRec(status, RNAM_ADDRESS, Hostname);
-}
-inline static void SetStatusPort(const Obj Port)
-{
-	AssPRec(status, RNAM_PORT, Port);
-}
-inline static void SetStatusReply(const Obj Reply)
-{
-	AssPRec(status, RNAM_REPLY, Reply);
-}
-inline static void SetStatusReplyInt(const Int Reply)
-{
-	AssPRec(status, RNAM_REPLY, INTOBJ_INT(Reply) );
-}
-inline static void SetStatusMessage(const Obj Message)
-{
-	AssPRec(status, RNAM_MESSAGE, Message);
-}
-inline static void SetStatusMessageCstr(const char *Message)
-{
-	AssPRec(status, RNAM_MESSAGE, MakeString(Message) );
-}
+/* ********************** Lists ************************* */
+Obj FuncPUSH(Obj self, Obj LR, Obj Name, Obj Data);
+Obj FuncPOP(Obj self, Obj LR, Obj Name);
 
-/* check if ctx object is not null */
-/* TODO: should we check for more? */
-#define CheckCTX() if (!ctx) { return Fail; }
-#define ErrorBadArguments() ErrorQuit("Bad arguments provided", 0L, 0L)
+/* ******************* Sorted sets *********************** */
+Obj FuncZRANGEBYSCORE( Obj self, Obj Set, Obj Start, Obj End );
+Obj FuncRedisZADD( Obj self, Obj Set, Obj Score, Obj Elm );
 
-Obj FuncRedisConnected( Obj self )
-{
-	if (ctx) {
-		return True;
-	}
-	SetStatusReply( REDIS_REPLY_ERROR_OBJ );
-	SetStatusMessage( REDIS_NO_CTX_MSG );
-	return False;
-}
-
-Obj FuncRedisConnect( Obj self, Obj Hostname, Obj Port )
-{
-	if ( ctx ) {
-		SetStatusReply(REDIS_REPLY_ERROR_OBJ);
-		SetStatusMessageCstr( "Redis context already allocated" );
-		return Fail;
-	}
-
-	if ( ! IS_STRING( Hostname ) || ! IS_INTOBJ( Port ) ) {
-		ErrorBadArguments();
-	}
-	SetStatusHostname( Hostname );
-	SetStatusPort( Port );
-	ctx  = redisConnect( CSTR_STRING(Hostname), INT_INTOBJ(Port) );
-	if ( ctx && ctx->err ) {
-		SetStatusReply( REDIS_REPLY_ERROR_OBJ );
-		SetStatusMessage( MakeString(ctx->errstr) );
-		return Fail;
-	}
-	CheckCTX();
-	return True;
-}
-
-Obj FuncRedisFree( Obj self )
-{
-	redisFree( ctx );
-	ctx = NULL;
-	
-	return (Obj)0;
-}
-
-Obj FuncRedisPing( Obj self )
-{
-	CheckCTX();
-
-	rep = redisCommand( ctx, "PING" );
-	SetStatusReplyInt(rep->type);
-	if ( rep->type == REDIS_REPLY_STATUS ) {
-		return MakeString( rep->str );
-	}
-	return Fail;
-}
-
-Obj FuncSetCounter(Obj self, Obj Name, Obj Value)
-{
-	CheckCTX();
-
-	if ( ! ( IS_STRING( Name ) && IS_INTOBJ( Value ) ) ) {
-    	ErrorBadArguments();
-  	}
-
-	rep = redisCommand( ctx, "SET %s %d", CSTR_STRING( Name ), INT_INTOBJ( Value ));
-	SetStatusReplyInt(rep->type);
-
-	freeReplyObject(rep);
-	return (Obj)0;
-}
-
-Obj FuncGetCounter(Obj self, Obj Name)
-{
-    CheckCTX();
-
-    if ( ! IS_STRING( Name ) ) {
-    	ErrorBadArguments();
-  	}
-
-	rep = redisCommand( ctx, "GET %s", CSTR_STRING( Name ));
-	SetStatusReplyInt(rep->type);
-
-	if ( rep->type == REDIS_REPLY_STRING ) {
-		rval = MakeStringWithLen( rep-> str, rep->len );
-	} else {
-		SetStatusMessageCstr( rep->str );
-		rval = Fail;
-	}
-
-	freeReplyObject(rep);
-	return rval;
-}
-
-Obj FuncINCR( Obj self, Obj Name )
-{
-	CheckCTX();
-
-	if ( ! IS_STRING( Name ) ) {
-    	ErrorBadArguments();
-  	}
-
-	rep = redisCommand( ctx, "INCR %s", CSTR_STRING( Name ));
-	SetStatusReplyInt(rep->type);
-
-	if ( rep->type == REDIS_REPLY_INTEGER ) {
-		rval = INTOBJ_INT(rep->integer);
-	} else {
-		rval = Fail;
-	}
-	freeReplyObject(rep);
-	return rval;
-}
-
-Obj FuncINCRBY( Obj self, Obj Name, Obj Value )
-{
-	CheckCTX();
-
-	if ( ! (IS_STRING( Name ) && IS_INTOBJ(Value)) ) {
-    	ErrorBadArguments();
-  	}
-
-	rep = redisCommand( ctx, "INCRBY %s %d", CSTR_STRING( Name ), INT_INTOBJ(Value));
-	SetStatusReplyInt(rep->type);
-
-	if ( rep->type == REDIS_REPLY_INTEGER ) {
-		rval = INTOBJ_INT(rep->integer);
-	} else {
-		rval = Fail;
-	}
-	freeReplyObject(rep);
-	return rval;
-}
-
-Obj FuncPUSH(Obj self, Obj LR, Obj Name, Obj Data)
-{
-	if ( ! ( IS_INTOBJ(LR) ) && IS_STRING( Name ) && IS_STRING( Data ) ) {
-    	ErrorBadArguments();
-  	}
-	if (INT_INTOBJ(LR)==0) {
-		/* push from the left */
-		rep = redisCommand(ctx, "LPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
-	} else {
-		rep = redisCommand(ctx, "RPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
-	}
-	SetStatusReplyInt(rep->type);
-
-	if ( rep->type == REDIS_REPLY_INTEGER ) {
-		rval = INTOBJ_INT(rep->integer);
-	} else {
-		rval = Fail;
-	}
-	freeReplyObject(rep);
-	return rval;
-}
-
-Obj FuncPOP(Obj self, Obj LR, Obj Name)
-{
-	if ( ! ( IS_INTOBJ(LR) ) && IS_STRING( Name ) ) {
-    	ErrorBadArguments();
-  	}
-	if (INT_INTOBJ(LR)==0) {
-		/* push from the left */
-		rep = redisCommand(ctx, "LPOP %s", CSTR_STRING(Name));
-	} else {
-		rep = redisCommand(ctx, "RPOP %s", CSTR_STRING(Name));
-	}
-	SetStatusReplyInt(rep->type);
-
-	if ( rep->type == REDIS_REPLY_STRING ) {
-		rval = MakeString(rep->str);
-	} else {
-		rval = Fail;
-	}
-	freeReplyObject(rep);
-	return rval;
-}
-
-Obj FuncDEL(Obj self, Obj Name)
-{
-	if ( !IS_STRING( Name ) ) {
-    	ErrorBadArguments();
-  	}
-	rep = redisCommand(ctx, "DEL %s", CSTR_STRING(Name));
-	SetStatusReplyInt(rep->type);
-
-	return (Obj)0;
-}
-
-Obj FuncCMD(Obj self, Obj Cmd)
-{
-	CheckCTX();
-
-	if ( !IS_STRING( Cmd ) ) {
-    	ErrorBadArguments();
-  	}
-	rep = redisCommand(ctx, CSTR_STRING(Cmd));
-	SetStatusReplyInt(rep->type);
-
-	switch(rep->type) {
-		case REDIS_REPLY_STATUS:
-			rval = MakeStringWithLen( rep-> str, rep->len );
-			break;
-		case REDIS_REPLY_ERROR:
-			SetStatusMessage( MakeStringWithLen(rep->str, rep->len) );
-			rval = Fail;
-			break;
-		case REDIS_REPLY_INTEGER:
-			rval = INTOBJ_INT( rep->integer );
-			break;
-		case REDIS_REPLY_NIL:
-			rval = (Obj)0;
-			break;
-		case REDIS_REPLY_VERB:
-			/* this should probably do more ... */
-		case REDIS_REPLY_STRING:
-			rval = MakeStringWithLen( rep-> str, rep->len );
-			break;
-		case REDIS_REPLY_ARRAY:
-		case REDIS_REPLY_SET:    /* these two will return a list */
-			rval = NEW_PLIST( T_PLIST, rep->elements );
-			SET_LEN_PLIST( rval, rep->elements );
-			PLAIN_LIST( rval );
-			for (size_t i=0; i<rep->elements; i++) {
-				// TODO: check if this line is needed
-				// rstring = MakeString( rep->element[i]->str );
-				ASS_LIST( rval, i+1, MakeString( rep->element[i]->str ) );
-			}
-			break;
-		case REDIS_REPLY_DOUBLE:
-			rval = NEW_MACFLOAT( strtod( rep->str, NULL ) );
-			break;
-		case REDIS_REPLY_BOOL:
-			rval = (rep->integer)?True:False;
-			break;
-		case REDIS_REPLY_PUSH:
-			/* left for now */
-			SetStatusMessage(MakeString("PUSH response not implemented yet"));
-			rval = Fail;
-			break;
-		case REDIS_REPLY_MAP:    /* return a record */
-			rval = NEW_PREC(0);
-			for (size_t i=0; i<rep->elements; i += 2) {
-				AssPRec(rval, RNamName(rep->element[i]->str), MakeString(rep->element[i+1]->str));
-			}
-			break;
-		case REDIS_REPLY_BIGNUM:
-			rval = IntStringInternal( NULL, rep->str );
-			break; 
-	}
-	return rval;
-}
 
 /* 
  * GVarFunc - list of functions to export
@@ -323,15 +53,29 @@ static StructGVarFunc GVarFunc[] = {
 	{ "RedisLRPush"          , 3, " lr, name, data"       , FuncPUSH              , "redis.c:LRPush"                 },
 	{ "RedisLRPop"           , 2, " lr, name"             , FuncPOP               , "redis.c:LRPop"                  },
 	{ "RedisDelete"          , 1, " name"                 , FuncDEL               , "redis.c:Delete"                 },
+	{ "RedisZRangeByScore"   , 3, " name, start, end"     , FuncZRANGEBYSCORE     , "redis.c:ZRangeByScore"          },
 	{ "RedisCommand"         , 1, " command_string"       , FuncCMD               , "redis.c:Command"                },
     { 0 }
 };
 
-static Int InitKernel (StructInitInfo * module)
-{
-    InitHdlrFuncsFromTable(GVarFunc);
-    return 0;
-}
+/*
+ * Variables
+ */
+
+static redisContext *ctx;         // connection context
+
+static redisReply *rep;           // always use rep = redisCommand(...)
+static Obj	      rval;           // always return rval GAP object
+
+static Obj   status;              // make this a GAP record to store connection/command data:
+static UInt  RNAM_ADDRESS,        // address of the Redis server
+			 RNAM_PORT,           // port
+			 RNAM_REPLY,          // integer holding response code
+			 RNAM_MESSAGE;        // string holding response/error message
+static Int GVAR_REDIS_STATUS;     // hold the GAP variable - record as above
+
+static Obj REDIS_REPLY_ERROR_OBJ; // handle the case when user tries to invoke
+static Obj REDIS_NO_CTX_MSG;      // commands without connection
 
 static Int InitLibrary(StructInitInfo * module)
 {
@@ -342,9 +86,11 @@ static Int InitLibrary(StructInitInfo * module)
     ctx = NULL;
     rep = NULL;
 
-	REDIS_NO_CTX_MSG      = MakeString(redis_no_ctx_msg);
+	/* define variables for no connection case */
+	REDIS_NO_CTX_MSG      = MakeString("Redis context object not allocated, probably not connected.");
 	REDIS_REPLY_ERROR_OBJ = INTOBJ_INT(REDIS_REPLY_ERROR);
 
+	/* initialize the status record */
 	RNAM_ADDRESS = RNamName("hostname");
 	RNAM_PORT    = RNamName("port");
 	RNAM_REPLY   = RNamName("reply");
@@ -420,14 +166,338 @@ static Int InitLibrary(StructInitInfo * module)
     return 0;
 }
 
+static Int PostRestore(StructInitInfo * module)
+{
+	GVAR_REDIS_STATUS = GVarName("REDIS_STATUS");
+	return 0;
+}
+
+static Int InitKernel (StructInitInfo * module)
+{
+    InitHdlrFuncsFromTable(GVarFunc);
+    return 0;
+}
+
 static StructInitInfo module = {
     .type = MODULE_DYNAMIC,
     .name = "redis",
     .initKernel = InitKernel,
     .initLibrary = InitLibrary,
+	.postRestore = PostRestore,
 };
 
 StructInitInfo * Init__Dynamic(void)
 {
   return &module;
 }
+
+
+/* ***************************************************** */
+/* ************** Functions' definitions *************** */
+inline static void 	SetStatusHostname(const Obj Hostname) 
+{
+	AssPRec(status, RNAM_ADDRESS, Hostname);
+}
+inline static void SetStatusPort(const Obj Port)
+{
+	AssPRec(status, RNAM_PORT, Port);
+}
+inline static void SetStatusReply(const Obj Reply)
+{
+	AssPRec(status, RNAM_REPLY, Reply);
+}
+inline static void SetStatusReplyInt(const Int Reply)
+{
+	AssPRec(status, RNAM_REPLY, INTOBJ_INT(Reply) );
+}
+inline static void SetStatusMessage(const Obj Message)
+{
+	AssPRec(status, RNAM_MESSAGE, Message);
+}
+inline static void SetStatusMessageCstr(const char *Message)
+{
+	AssPRec(status, RNAM_MESSAGE, MakeString(Message) );
+}
+
+static inline Obj PLAIN_LIST_REPLY(const redisReply *reply)
+{
+	static Obj o;
+	static size_t i;
+
+	o = NEW_PLIST( T_PLIST, reply->elements );
+	SET_LEN_PLIST( o, reply->elements );
+	PLAIN_LIST( o );
+	for (i=0; i<reply->elements; i++) {
+		ASS_LIST( o, i+1, MakeString( reply->element[i]->str ) );
+	}
+	return o;
+}
+
+static inline Obj PREC_REPLY(const redisReply *reply)
+{
+	static Obj o;
+	static size_t i;
+
+	o = NEW_PREC(0);
+	for (i=0; i<reply->elements; i += 2) {
+		AssPRec(o, RNamName(reply->element[i]->str), MakeString(reply->element[i+1]->str));
+	}
+	return o;
+}
+
+/* check if ctx object is not null */
+/* TODO: should we check for more? */
+#define CheckCTX(obj) if (!ctx) { \
+	SetStatusReply( REDIS_REPLY_ERROR_OBJ ); \
+	SetStatusMessage( REDIS_NO_CTX_MSG ); \
+	return obj; }
+
+#define AssertArgType(test) if ( !(test) ) { \
+	ErrorQuit("Bad arguments provided", 0L, 0L); \
+	}
+
+#define _begin(test) AssertArgType(test); CheckCTX(Fail); rval = (Obj)0; SetStatusMessageCstr("");
+
+#define _end() freeReplyObject(rep); return rval;
+
+#define _parse_response() SetStatusReplyInt(rep->type); \
+	if ( rep->type == REDIS_REPLY_ERROR ) { \
+		SetStatusMessageCstr( rep->str ); \
+		freeReplyObject(rep); \
+		return Fail; \
+	}
+
+
+Obj FuncRedisConnected( Obj self )
+{
+	CheckCTX(False);
+
+	return True;
+}
+
+Obj FuncRedisConnect( Obj self, Obj Hostname, Obj Port )
+{
+	if ( ctx ) {
+		SetStatusReply(REDIS_REPLY_ERROR_OBJ);
+		SetStatusMessageCstr( "Redis context already allocated" );
+		return Fail;
+	}
+
+	AssertArgType( IS_STRING( Hostname ) && IS_INTOBJ( Port ) );
+
+	SetStatusHostname( Hostname );
+	SetStatusPort( Port );
+
+	ctx  = redisConnect( CSTR_STRING(Hostname), INT_INTOBJ(Port) );
+
+	CheckCTX(Fail);
+	
+	if ( ctx->err ) {
+		SetStatusReply( REDIS_REPLY_ERROR_OBJ );
+		SetStatusMessage( MakeString(ctx->errstr) );
+		return Fail;
+	}
+	return True;
+}
+
+Obj FuncRedisFree( Obj self )
+{
+	redisFree( ctx );
+	ctx = NULL;
+	
+	return (Obj)0;
+}
+
+Obj FuncRedisPing( Obj self )
+{
+	_begin(1);
+
+	rep = redisCommand( ctx, "PING" );
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_STATUS ) ? MakeString( rep->str ) : Fail;
+
+	_end();
+}
+
+Obj FuncCMD(Obj self, Obj Cmd)
+{
+	_begin( IS_STRING( Cmd ) );
+	
+	rep = redisCommand(ctx, CSTR_STRING(Cmd));
+	
+	SetStatusReplyInt(rep->type);
+
+	switch(rep->type) {
+		case REDIS_REPLY_STATUS:
+			rval = MakeStringWithLen( rep-> str, rep->len );
+			break;
+		case REDIS_REPLY_ERROR:
+			SetStatusMessage( MakeStringWithLen(rep->str, rep->len) );
+			rval = Fail;
+			break;
+		case REDIS_REPLY_INTEGER:
+			rval = INTOBJ_INT( rep->integer );
+			break;
+		case REDIS_REPLY_NIL:
+			rval = (Obj)0;
+			break;
+		case REDIS_REPLY_VERB:
+			/* this should probably do more ... */
+		case REDIS_REPLY_STRING:
+			rval = MakeStringWithLen( rep-> str, rep->len );
+			break;
+		case REDIS_REPLY_ARRAY:
+		case REDIS_REPLY_SET:    /* these two will return a list */
+			rval = PLAIN_LIST_REPLY( rep );
+			break;
+		case REDIS_REPLY_DOUBLE:
+			rval = NEW_MACFLOAT( strtod( rep->str, NULL ) );
+			break;
+		case REDIS_REPLY_BOOL:
+			rval = (rep->integer)?True:False;
+			break;
+		case REDIS_REPLY_PUSH:
+			/* left for now */
+			SetStatusMessageCstr( "PUSH response not implemented yet" );
+			rval = Fail;
+			break;
+		case REDIS_REPLY_MAP:    /* return a record */
+			rval = PREC_REPLY(rep);
+			break;
+		case REDIS_REPLY_BIGNUM:
+			rval = IntStringInternal( NULL, rep->str );
+			break; 
+	}
+
+	_end();
+}
+
+
+Obj FuncSetCounter(Obj self, Obj Name, Obj Value)
+{
+	_begin( IS_STRING( Name ) && IS_INTOBJ( Value ) );
+
+	rep = redisCommand( ctx, "SET %s %d", CSTR_STRING( Name ), INT_INTOBJ( Value ));
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_STRING ) ? Value : Fail;
+
+	_end();
+}
+
+Obj FuncGetCounter(Obj self, Obj Name)
+{
+    _begin( IS_STRING( Name ) );
+
+	rep = redisCommand( ctx, "GET %s", CSTR_STRING( Name ));
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_STRING ) ? IntStringInternal( 0, rep->str ) : Fail ;
+
+	_end();
+}
+
+Obj FuncINCR( Obj self, Obj Name )
+{
+	_begin( IS_STRING( Name ) );
+
+	rep = redisCommand( ctx, "INCR %s", CSTR_STRING( Name ));
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_INTEGER ) ? INTOBJ_INT(rep->integer) : Fail;
+	
+	_end();
+}
+
+Obj FuncINCRBY( Obj self, Obj Name, Obj Value )
+{
+	_begin( IS_STRING( Name ) && IS_INTOBJ(Value) );
+
+	rep = redisCommand( ctx, "INCRBY %s %d", CSTR_STRING( Name ), INT_INTOBJ(Value));
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_INTEGER ) ? INTOBJ_INT(rep->integer) : Fail;
+	
+	_end();
+}
+
+Obj FuncPUSH(Obj self, Obj LR, Obj Name, Obj Data)
+{
+	_begin( IS_INTOBJ(LR) && IS_STRING( Name ) && IS_STRING( Data ) );
+	
+	if (INT_INTOBJ(LR)==0) {
+		/* push from the left */
+		rep = redisCommand(ctx, "LPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
+	} else {
+		rep = redisCommand(ctx, "RPUSH %s %s", CSTR_STRING(Name), CSTR_STRING(Data));
+	}
+	
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_INTEGER ) ? INTOBJ_INT(rep->integer) : Fail;
+
+	_end();
+}
+
+Obj FuncPOP(Obj self, Obj LR, Obj Name)
+{
+	_begin( IS_INTOBJ(LR) && IS_STRING( Name ) );
+	
+	if (INT_INTOBJ(LR)==0) {
+		/* push from the left */
+		rep = redisCommand(ctx, "LPOP %s", CSTR_STRING(Name));
+	} else {
+		rep = redisCommand(ctx, "RPOP %s", CSTR_STRING(Name));
+	}
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_STRING ) ? MakeString(rep->str) : Fail;
+	
+	_end();
+}
+
+Obj FuncDEL(Obj self, Obj Name)
+{
+	_begin( IS_STRING( Name ) );
+	
+	rep = redisCommand(ctx, "DEL %s", CSTR_STRING(Name));
+	
+	_parse_response();
+
+	rval = (Obj)0;
+
+	_end();
+}
+
+Obj FuncZRANGEBYSCORE( Obj self, Obj Set, Obj Start, Obj End )
+{
+	_begin( IS_STRING(Set) && IS_INTOBJ(Start) && IS_INTOBJ(End) );
+
+	rep = redisCommand( ctx, "ZRANGEBYSCORE %s %d %d", CSTR_STRING(Set), INT_INTOBJ(Start), INT_INTOBJ(End) );
+
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_ARRAY ) ? PLAIN_LIST_REPLY(rep) : Fail;
+
+	_end();
+}
+
+Obj FuncRedisZADD( Obj self, Obj Set, Obj Score, Obj Elm )
+{ 
+	_begin( IS_STRING( Set ) && IS_INTOBJ( Score ) && IS_STRING( Elm ) );
+
+	rep = redisCommand( ctx, "ZADD %s %d %s", CSTR_STRING(Set), INT_INTOBJ(Score), CSTR_STRING(Elm) );
+
+	_parse_response();
+
+	rval = ( rep->type == REDIS_REPLY_INTEGER ) ? INTOBJ_INT(rep->integer) : Fail;
+
+	_end();
+}	
+
